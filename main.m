@@ -23,6 +23,7 @@ if isfile("trajectory.mat")
     disp("Loaded trajectory.");
 else
     generate_trajectories(Ts, N, trajectory_scale);
+    load("trajectory.mat");
     disp("Generated trajectory.");
 end
 disp("Ts=" + Ts);
@@ -38,7 +39,7 @@ grid minor;
 xlabel("X");
 ylabel("Y");
 x_range = max(xd_ts.Data);
-y_range = max(yd_ts.Data);
+y_range = max([abs(max(yd_ts.Data)), abs(min(yd_ts.Data))]);
 xlim([-0.1*x_range, 1.1*x_range]);
 ylim([-1.1*y_range, 1.1*y_range]);
 hold on;
