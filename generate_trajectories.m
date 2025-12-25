@@ -1,15 +1,15 @@
 function generate_trajectories(nr_trajectories, Ts, N, trajectory_scale)
 
-trajectories = dictionary();
+step = 1;
+x_start = 0;
+y_start = 5;
+x_goal  = 10;
+y_min = 0;
+y_max = 10;
 
+trajectories = dictionary();
 for i = 1:nr_trajectories
     %% generate trajectory
-    step = 1;
-    x_start = 0;
-    y_start = 5;
-    x_goal  = 10;
-    y_min = 0;
-    y_max = 10;
     pts = random_trajectory(step, x_start, y_start, x_goal, y_min, y_max);
     
     %% pre-processing
@@ -65,6 +65,17 @@ for i = 1:nr_trajectories
     trajectories("trajectory"+i) = trajectory;
 end
 
+%% generate random setpoints for the regulation task
+end_point = [trajectory_scale, 0]; % where the trajectories end
+for i = 1:nr_trajectories
+    r = rand();
+    rsign = rand();
+    sign = 1;
+    if rsign < 0.5
+        sign = -1;
+    end
+    trajectories("trajectory"+i).setpoint = end_point + [trajectory_scale/10, sign*r*trajectory_scale/2.5];
+end
 
 save("trajectories.mat", "nr_trajectories", "Ts", "N", "trajectory_scale", "trajectories");
 

@@ -41,4 +41,6 @@ while y ~= y_start
     path(end+1, :) = [x, y];
 end
 
+% finally add a small line piece at the end
+path(end+1, :) = [path(end, 1)+step, path(end, 2)];
 end
