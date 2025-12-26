@@ -28,6 +28,13 @@ class Canvas:
         tk.Button(control_frame, text="Clear", command=self.clear_points).pack(side="left", padx=5)
         tk.Button(control_frame, text="Print Path", command=self.print_path).pack(side="left", padx=5)
         tk.Button(control_frame, text="Print SMooth Path", command=self.print_smooth_path).pack(side="left", padx=5)
+        self.smoothing_enabled = True
+        self.smooth_btn = tk.Button(
+            control_frame,
+            text="Smoothing: ON",
+            command=self.toggle_smoothing
+        )
+        self.smooth_btn.pack(side="left", padx=5)
         tk.Button(control_frame, text="SAVE", command=self.save).pack(side="left", padx=5)
 
         instructions = (
@@ -35,7 +42,7 @@ class Canvas:
             "at the end, hold right mouse button and draw an arrow for the setpoint and orientation (regulation task), then you can save.\n"
             "green: start of the path, red: end of the path, black: intermediate points, magenta: setpoint (regulation task)\n"
             "the y coordinates are negated during save, since y direction is downwards here.\n"
-            "the setpoint coordinates are the second to last entry in the saved csv files, and the last one is the angle it has (written twice)"
+            "the setpoint coordinates are the second to last entry in the saved csv file (control points), and the last one is the angle it has (written twice). the first entry is the offset."
         )
         tk.Label(root, text=instructions, justify="left").pack(anchor="w", padx=5, pady=10)
 
@@ -68,6 +75,18 @@ class Canvas:
         self.canvas.bind("<B3-Motion>", self.update_setpoint)
         self.canvas.bind("<ButtonRelease-3>", self.finish_setpoint)
 
+    def toggle_smoothing(self):
+        self.smoothing_enabled = not self.smoothing_enabled
+        state = "ON" if self.smoothing_enabled else "OFF"
+        self.smooth_btn.config(text=f"Smoothing: {state}")
+
+        if self.smoothing_enabled:
+            self.build_smooth_path()
+        else:
+            self.smooth_points.clear()
+
+        self.redraw()
+
     def redraw(self):
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, image=self.overlay, anchor="nw")
@@ -75,12 +94,16 @@ class Canvas:
         if not self.offset: return
 
         # curve
-        curve = []
-        pts = [self.points[0]] + self.points + [self.points[-1]]
-        for i in range(1, len(self.smooth_points)):
-            x1, y1 = add_pts(self.smooth_points[i-1] , self.offset)
-            x2, y2 = add_pts(self.smooth_points[i] , self.offset)
-            self.canvas.create_line(x1, y1, x2, y2, fill="blue", width=5)
+        if self.smoothing_enabled and len(self.smooth_points) > 1:
+            for i in range(1, len(self.smooth_points)):
+                x1, y1 = add_pts(self.smooth_points[i - 1], self.offset)
+                x2, y2 = add_pts(self.smooth_points[i], self.offset)
+                self.canvas.create_line(x1, y1, x2, y2, fill="blue", width=5)
+        else:
+            for i in range(1, len(self.points)):
+                x1, y1 = add_pts(self.points[i - 1], self.offset)
+                x2, y2 = add_pts(self.points[i], self.offset)
+                self.canvas.create_line(x1, y1, x2, y2, fill="blue", width=3)
 
         # points
         r = 10
@@ -105,7 +128,10 @@ class Canvas:
         if len(self.points) == 0:
             self.offset = point
         self.points.append([point[0] - self.offset[0], point[1] - self.offset[1]])
-        self.build_smooth_path()
+        if self.smoothing_enabled:
+            self.build_smooth_path()
+        else:
+            self.smooth_points.clear()
 
         self.redraw()
 
@@ -217,6 +243,9 @@ class Canvas:
         print("];")
 
     def save(self):
+        if not self.smoothing_enabled:
+            self.smooth_points = self.points.copy()
+
         if not self.points or not self.smooth_points or self.setpoint is None or self.setpoint_angle is None:
             print("sth missing.")
             return
@@ -231,6 +260,7 @@ class Canvas:
         control_csv = os.path.join(folder, "control_path.csv")
         with open(control_csv, "w", newline="") as f:
             writer = csv.writer(f)
+            writer.writerow([self.offset[0], -self.offset[1]])
             for p in self.points:
                 writer.writerow([p[0], -p[1]])
             writer.writerow([self.setpoint[0], -self.setpoint[1]])
@@ -241,8 +271,6 @@ class Canvas:
             writer = csv.writer(f)
             for p in self.smooth_points:
                 writer.writerow([p[0], -p[1]])
-            writer.writerow([self.setpoint[0], -self.setpoint[1]])
-            writer.writerow([self.setpoint_angle, self.setpoint_angle])
 
         ps_path = os.path.join(folder, "canvas.ps")
         png_path = os.path.join(folder, "canvas.png")
