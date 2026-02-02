@@ -19,6 +19,10 @@ thetad = [idk];
 
 %% ---------------- Simulation --------------------------------
 [t, x] = ode45(@(t,x) posture_regulation(t,x,xd,yd,thetad), tspan, x0);
+% [t, x] = ode45(@(t,x)
+% posture_regulation_singularity_free(t,x,xd,yd,thetad), tspan, x0); 
+% t probably is useless cause posture regulation does not depend on time t
+% but idkkkkk
 
 %% ---------------- Plot --------------------------------------
 figure;
